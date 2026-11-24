@@ -33,9 +33,10 @@ def test_menu(
     assert "\nАнна\n" in output
     assert "Количество заказов: 2. Стоимость: $15.49." in output
     assert "Заказ отменён." in output
-    users, _, orders = load_data(path)
-    assert "Анна" in users
-    assert orders == {"Alice": "Pizza"}
+    canteen = load_data(path)
+    assert "Анна" in canteen.visitors
+    assert list(canteen.orders) == ["Alice"]
+    assert canteen.orders["Alice"].dish.name == "Pizza"
 
 
 def test_demo(
@@ -53,5 +54,19 @@ def test_demo(
     output = capsys.readouterr().out
     assert "Pizza доступно для заказа. Цена: $10.99." in output
     assert "Заказ посетителя Alice: Pizza" in output
-    users, _, _ = load_data(path)
-    assert "Анна" in users
+    assert "Анна" in load_data(path).visitors
+
+
+def test_failed_save_keeps_current_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ошибка записи не добавляет посетителя в текущее состояние."""
+    path = tmp_path / "missing" / "canteen.json"
+    canteen = load_data(path)
+    monkeypatch.setattr("builtins.input", lambda _: "Анна")
+
+    with pytest.raises(OSError):
+        main.run_action("1", canteen, path)
+
+    assert "Анна" not in canteen.visitors
+    assert not path.exists()

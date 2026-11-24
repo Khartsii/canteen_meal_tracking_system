@@ -11,13 +11,22 @@ from storage import load_data, save_data
 def test_save_and_reload(tmp_path: Path) -> None:
     """Изменённые данные восстанавливаются из JSON."""
     path = tmp_path / "canteen.json"
-    users, menu, orders = load_data(path)
-    assert orders["Alice"] == "Pizza"
-    users.append("Анна")
-    orders["Анна"] = "Soup"
-    save_data(path, (users, menu, orders))
-    assert load_data(path) == (users, menu, orders)
-    assert "Анна" in path.read_text(encoding="utf-8")
+    canteen = load_data(path)
+    assert canteen.orders["Alice"].dish.name == "Pizza"
+    canteen.add_user("Анна")
+    canteen.add_order("Анна", "Soup")
+    save_data(path, canteen)
+
+    contents = json.loads(path.read_text(encoding="utf-8"))
+    assert "Анна" in contents["users"]
+    assert contents["menu"]["Soup"] == {"price": 4.5, "available": True}
+    assert contents["orders"] == {"Alice": "Pizza", "Анна": "Soup"}
+
+    loaded = load_data(path)
+    order = loaded.orders["Анна"]
+    assert order.visitor is loaded.visitors["Анна"]
+    assert order.dish is loaded.menu["Soup"]
+    assert loaded.order_statistics() == canteen.order_statistics()
 
 
 def test_reject_malformed_json(tmp_path: Path) -> None:

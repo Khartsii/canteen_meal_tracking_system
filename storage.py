@@ -5,13 +5,12 @@ from math import isfinite
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from meals import Menu, Orders
+from meals import Canteen, Dish, Order, Visitor
 
-Data = tuple[list[str], Menu, Orders]
 STARTER_FILE = Path(__file__).with_name("initial_data.json")
 
 
-def load_data(path: Path) -> Data:
+def load_data(path: Path) -> Canteen:
     """Прочитать данные проекта или загрузить начальный набор."""
     try:
         with path.open(encoding="utf-8") as file:
@@ -34,31 +33,48 @@ def load_data(path: Path) -> Data:
         raise ValueError("В JSON найдены повторяющиеся имена посетителей.")
     if not isinstance(menu, dict):
         raise ValueError("В JSON требуется словарь блюд.")
-    for dish in menu.values():
+    dishes: dict[str, Dish] = {}
+    for name, dish in menu.items():
         if not isinstance(dish, dict):
             raise ValueError("Описание блюда должно быть объектом.")
         price = dish.get("price")
+        available = dish.get("available")
         if (
             type(price) not in (int, float)
             or price < 0
             or (isinstance(price, float) and not isfinite(price))
-            or not isinstance(dish.get("available"), bool)
+            or not isinstance(available, bool)
         ):
             raise ValueError("Проверьте цену и доступность блюд в JSON.")
+        dishes[name] = Dish(name, price, available)
+    visitors = {name: Visitor(name) for name in users}
     if not isinstance(orders, dict) or not all(
-        user in users and isinstance(dish, str) and dish in menu
+        user in visitors and isinstance(dish, str) and dish in dishes
         for user, dish in orders.items()
     ):
         raise ValueError(
             "Заказы в JSON должны ссылаться на посетителей и блюда.",
         )
-    return users, menu, orders
+    loaded_orders = {
+        name: Order(visitors[name], dishes[dish])
+        for name, dish in orders.items()
+    }
+    return Canteen(visitors, dishes, loaded_orders)
 
 
-def save_data(path: Path, data: Data) -> None:
+def save_data(path: Path, data: Canteen) -> None:
     """Записать данные и заменить файл после успешной записи."""
-    users, menu, orders = data
-    contents = {"users": users, "menu": menu, "orders": orders}
+    contents = {
+        "users": [visitor.name for visitor in data.visitors.values()],
+        "menu": {
+            dish.name: {"price": dish.price, "available": dish.available}
+            for dish in data.menu.values()
+        },
+        "orders": {
+            order.visitor.name: order.dish.name
+            for order in data.orders.values()
+        },
+    }
     with TemporaryDirectory(dir=path.parent) as directory:
         temp_path = Path(directory) / path.name
         with temp_path.open("w", encoding="utf-8") as file:

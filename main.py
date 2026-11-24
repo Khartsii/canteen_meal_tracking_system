@@ -3,16 +3,8 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-from meals import (
-    add_order,
-    add_user,
-    cancel_order,
-    dish_info,
-    find_users,
-    info_user,
-    order_statistics,
-)
-from storage import Data, load_data, save_data
+from meals import Canteen
+from storage import load_data, save_data
 
 DATA_FILE = Path(__file__).with_name("canteen_data.json")
 
@@ -33,44 +25,43 @@ def read_name() -> str:
     return input("Имя посетителя: ").strip()
 
 
-def run_action(choice: str, data: Data, path: Path) -> None:
-    """Выполнить выбранное действие и сохранить изменения."""
-    users, menu, orders = data
+def run_action(choice: str, data: Canteen, path: Path) -> Canteen:
+    """Выполнить действие и вернуть состояние после успешного сохранения."""
     if choice == "1":
-        updated_users = users.copy()
-        message = add_user(updated_users, read_name())
-        if updated_users != users:
-            save_data(path, (updated_users, menu, orders))
-            users[:] = updated_users
+        updated = data.copy()
+        message = updated.add_user(read_name())
+        if len(updated.visitors) != len(data.visitors):
+            save_data(path, updated)
+            data = updated
         print(message)
     elif choice == "2":
-        for name in sorted(menu, key=str.casefold):
-            dish = menu[name]
-            print(dish_info(name, dish["price"], bool(dish["available"])))
+        for name in sorted(data.menu, key=str.casefold):
+            print(data.menu[name])
     elif choice == "3":
-        print(info_user(read_name(), users, orders))
+        print(data.info_user(read_name()))
     elif choice in ("4", "5"):
         user = read_name()
-        updated_orders = orders.copy()
+        updated = data.copy()
         if choice == "4":
             dish_name = input("Название блюда: ").strip()
-            add_order(users, menu, updated_orders, user, dish_name)
+            updated.add_order(user, dish_name)
             message = "Заказ оформлен."
         else:
-            cancel_order(updated_orders, user)
+            updated.cancel_order(user)
             message = "Заказ отменён."
-        save_data(path, (users, menu, updated_orders))
-        orders.clear()
-        orders.update(updated_orders)
+        save_data(path, updated)
+        data = updated
         print(message)
     elif choice == "6":
-        matches = find_users(users, input("Часть имени: ").strip())
-        print(", ".join(matches) if matches else "Посетители не найдены.")
+        matches = data.find_users(input("Часть имени: ").strip())
+        names = ", ".join(str(visitor) for visitor in matches)
+        print(names or "Посетители не найдены.")
     elif choice == "7":
-        count, total = order_statistics(menu, orders)
+        count, total = data.order_statistics()
         print(f"Количество заказов: {count}. Стоимость: ${total:.2f}.")
     else:
         raise ValueError("Выберите пункт меню от 0 до 7.")
+    return data
 
 
 def main() -> int:
@@ -87,16 +78,10 @@ def main() -> int:
 
     try:
         if args.demo:
-            run_action("1", data, DATA_FILE)
-            users, menu, orders = data
-            if "Pizza" in menu:
-                pizza = menu["Pizza"]
-                print(
-                    dish_info(
-                        "Pizza", pizza["price"], bool(pizza["available"]),
-                    ),
-                )
-            print(info_user("Alice", users, orders))
+            data = run_action("1", data, DATA_FILE)
+            if "Pizza" in data.menu:
+                print(data.menu["Pizza"])
+            print(data.info_user("Alice"))
             return 0
 
         while True:
@@ -105,7 +90,7 @@ def main() -> int:
             if choice == "0":
                 return 0
             try:
-                run_action(choice, data, DATA_FILE)
+                data = run_action(choice, data, DATA_FILE)
             except (ValueError, OSError) as error:
                 print(f"Ошибка: {error}")
     except (EOFError, KeyboardInterrupt):
