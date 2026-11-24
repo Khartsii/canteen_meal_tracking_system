@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 from meals import Canteen, Dish, Order, Visitor
 
+DATA_FILE = Path(__file__).with_name("canteen_data.json")
 STARTER_FILE = Path(__file__).with_name("initial_data.json")
 
 

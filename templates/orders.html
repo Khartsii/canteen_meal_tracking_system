@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Действующие заказы{% endblock %}
+{% block content %}
+  <h1>Действующие заказы</h1>
+  <p>Всего: {{ count }}. Общая стоимость: {{ total|floatformat:2 }} $.</p>
+  <div class="panel">
+    {% if orders %}
+      <table class="table mb-0">
+        <thead>
+          <tr><th scope="col">Посетитель</th><th scope="col">Блюдо</th></tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+            <tr>
+              <td>{{ order.visitor.name }}</td>
+              <td><a href="{% url 'menu:detail' name=order.dish.name %}">{{ order.dish.name }}</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="mb-0">Действующих заказов пока нет.</p>
+    {% endif %}
+  </div>
+{% endblock %}

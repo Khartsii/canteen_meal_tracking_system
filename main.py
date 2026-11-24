@@ -4,9 +4,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from meals import Canteen
-from storage import load_data, save_data
-
-DATA_FILE = Path(__file__).with_name("canteen_data.json")
+from storage import DATA_FILE, load_data, save_data
 
 MENU = """
 1. Добавить посетителя

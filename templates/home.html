@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Система учёта питания{% endblock %}
+{% block content %}
+  <h1>Система учёта питания</h1>
+  <p>Меню столовой и действующие заказы посетителей.</p>
+  <div class="panel d-flex flex-wrap gap-2">
+    <a class="btn btn-success" href="{% url 'menu:list' %}">Посмотреть меню</a>
+    <a class="btn btn-outline-success" href="{% url 'orders:list' %}">Посмотреть заказы</a>
+  </div>
+{% endblock %}

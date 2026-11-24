@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ dish.name }} — меню{% endblock %}
+{% block content %}
+  <h1>{{ dish.name }}</h1>
+  <div class="panel">
+    <p>Цена: {{ dish.price|floatformat:2 }} $</p>
+    <p>{% if dish.available %}Доступно для заказа{% else %}Недоступно для заказа{% endif %}</p>
+    <a href="{% url 'menu:list' %}">Вернуться к меню</a>
+  </div>
+{% endblock %}
