@@ -1,36 +1,120 @@
-users_name = ['Alice', 'Bob', 'Charlie', 'David', 'Eve']
-users_orders = {'Alice': ['Pizza, cost $10.99']}  # список заказов пользователей (например, словарь с именами пользователей и их заказами)
-state_orders = ...  # состояние заказа (принятый, в процессе, выполнен)
-dish_name = ...
-dish_price = ...
-dish_access = ...
+"""Консольный интерфейс системы учёта питания."""
 
-# добавление нового пользователя в список
-def add_user(users_name):
-    name = str(input("Enter the name of the user to add: "))
-    if name not in users_name:
-        users_name.append(name)
-        return(f"{name} has been added to the user list.")
+from argparse import ArgumentParser
+from pathlib import Path
+
+from meals import (
+    add_order,
+    add_user,
+    cancel_order,
+    dish_info,
+    find_users,
+    info_user,
+    order_statistics,
+)
+from storage import Data, load_data, save_data
+
+DATA_FILE = Path(__file__).with_name("canteen_data.json")
+
+MENU = """
+1. Добавить посетителя
+2. Показать блюда
+3. Посмотреть заказ посетителя
+4. Оформить заказ
+5. Отменить заказ
+6. Найти посетителей
+7. Показать статистику заказов
+0. Выйти
+"""
+
+
+def read_name() -> str:
+    """Запросить имя посетителя."""
+    return input("Имя посетителя: ").strip()
+
+
+def run_action(choice: str, data: Data, path: Path) -> None:
+    """Выполнить выбранное действие и сохранить изменения."""
+    users, menu, orders = data
+    if choice == "1":
+        updated_users = users.copy()
+        message = add_user(updated_users, read_name())
+        if updated_users != users:
+            save_data(path, (updated_users, menu, orders))
+            users[:] = updated_users
+        print(message)
+    elif choice == "2":
+        for name in sorted(menu, key=str.casefold):
+            dish = menu[name]
+            print(dish_info(name, dish["price"], bool(dish["available"])))
+    elif choice == "3":
+        print(info_user(read_name(), users, orders))
+    elif choice in ("4", "5"):
+        user = read_name()
+        updated_orders = orders.copy()
+        if choice == "4":
+            dish_name = input("Название блюда: ").strip()
+            add_order(users, menu, updated_orders, user, dish_name)
+            message = "Заказ оформлен."
+        else:
+            cancel_order(updated_orders, user)
+            message = "Заказ отменён."
+        save_data(path, (users, menu, updated_orders))
+        orders.clear()
+        orders.update(updated_orders)
+        print(message)
+    elif choice == "6":
+        matches = find_users(users, input("Часть имени: ").strip())
+        print(", ".join(matches) if matches else "Посетители не найдены.")
+    elif choice == "7":
+        count, total = order_statistics(menu, orders)
+        print(f"Количество заказов: {count}. Стоимость: ${total:.2f}.")
     else:
-        return(f"{name} is already in the user list.")
+        raise ValueError("Выберите пункт меню от 0 до 7.")
 
 
-# информация и доступность блюда
-def dish_info(dish_name, dish_price, dish_access):
-    if dish_access:
-        return(f"The dish '{dish_name}' is available for order, cost: ${dish_price}.")
-    else:
-        return(f"The dish '{dish_name}' is not available for order.")
+def main() -> int:
+    """Загрузить данные и запустить меню или исходный сценарий."""
+    parser = ArgumentParser(description="Система учёта питания в столовой")
+    parser.add_argument("--demo", action="store_true", help="сценарий ПР №1")
+    args = parser.parse_args()
+
+    try:
+        data = load_data(DATA_FILE)
+    except (OSError, ValueError) as error:
+        print(f"Не удалось загрузить данные: {error}")
+        return 1
+
+    try:
+        if args.demo:
+            run_action("1", data, DATA_FILE)
+            users, menu, orders = data
+            if "Pizza" in menu:
+                pizza = menu["Pizza"]
+                print(
+                    dish_info(
+                        "Pizza", pizza["price"], bool(pizza["available"]),
+                    ),
+                )
+            print(info_user("Alice", users, orders))
+            return 0
+
+        while True:
+            print(MENU)
+            choice = input("Выберите действие: ").strip()
+            if choice == "0":
+                return 0
+            try:
+                run_action(choice, data, DATA_FILE)
+            except (ValueError, OSError) as error:
+                print(f"Ошибка: {error}")
+    except (EOFError, KeyboardInterrupt):
+        print("\nРабота завершена.")
+        return 0
+    except (ValueError, OSError) as error:
+        print(f"Ошибка: {error}")
+        return 1
 
 
-# информация о пользователе и его заказах
-def info_user(name, users_name, users_orders, user_count):
-    if name in users_name and users_orders is not None:
-        return(f"User '{name}' has order {users_orders}.")
-    else:
-        return(f"User '{name}' has no orders or does not exist in the user list.")
-
-
-print(add_user(users_name))
-print(dish_info('Pizza', 10.99, True))
-print(info_user('Alice', users_name, users_orders, 1))
+if __name__ == "__main__":
+    raise SystemExit(main())

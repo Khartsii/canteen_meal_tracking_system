@@ -1,0 +1,9 @@
+{
+  "users": ["Alice", "Bob", "Charlie", "David", "Eve"],
+  "menu": {
+    "Pizza": {"price": 10.99, "available": true},
+    "Soup": {"price": 4.5, "available": true},
+    "Salad": {"price": 5.0, "available": false}
+  },
+  "orders": {"Alice": "Pizza"}
+}
