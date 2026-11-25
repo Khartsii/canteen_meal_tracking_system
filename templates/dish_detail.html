@@ -3,6 +3,7 @@
 {% block content %}
   <h1>{{ dish.name }}</h1>
   <div class="panel">
+    {% if dish.description %}<p>{{ dish.description }}</p>{% endif %}
     <p>Цена: {{ dish.price|floatformat:2 }} $</p>
     <p>{% if dish.available %}Доступно для заказа{% else %}Недоступно для заказа{% endif %}</p>
     <a href="{% url 'menu:list' %}">Вернуться к меню</a>

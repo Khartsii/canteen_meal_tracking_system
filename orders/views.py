@@ -1,7 +1,9 @@
 """Страницы действующих заказов."""
 
+from datetime import date
+
 from django.core.paginator import Paginator
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
@@ -25,14 +27,27 @@ def order_list(request: HttpRequest) -> HttpResponse:
     if sort not in SORTS:
         sort = "recent"
 
-    orders = Order.objects.select_related("visitor", "dish")
+    status = request.GET.get("status", Order.Status.ACTIVE)
+    if status not in (*Order.Status.values, "all"):
+        status = Order.Status.ACTIVE
+
+    date_text = request.GET.get("date", "").strip()
+    error = ""
+    orders = Order.objects.with_details()
+    if status == Order.Status.ACTIVE:
+        orders = orders.active()
+    elif status != "all":
+        orders = orders.filter(status=status)
     if search:
-        orders = orders.filter(
-            Q(visitor__name__icontains=search)
-            | Q(dish__name__icontains=search),
-        )
+        orders = orders.search(search)
     if dish:
         orders = orders.filter(dish__name=dish)
+    if date_text:
+        try:
+            orders = orders.for_date(date.fromisoformat(date_text))
+        except ValueError:
+            error = "Укажите дату в формате ГГГГ-ММ-ДД."
+            orders = orders.none()
     totals = orders.aggregate(
         count=Count("pk"), total=Sum("dish__price", default=0),
     )
@@ -49,14 +64,25 @@ def order_list(request: HttpRequest) -> HttpResponse:
             "selected_dish": dish,
             "search": search,
             "sort": sort,
+            "selected_status": status,
+            "statuses": Order.Status.choices,
+            "date": date_text,
+            "date_error": error,
             **totals,
         },
+        status=400 if error else 200,
     )
 
 
 def order_detail(request: HttpRequest, visitor: str) -> HttpResponse:
     """Показать действующий заказ выбранного посетителя."""
     order = get_object_or_404(
-        Order.objects.select_related("visitor", "dish"), visitor__name=visitor,
+        Order.objects.active().with_details(), visitor__name=visitor,
     )
+    return render(request, "order_detail.html", {"order": order})
+
+
+def order_history_detail(request: HttpRequest, pk: int) -> HttpResponse:
+    """Показать конкретный заказ независимо от состояния."""
+    order = get_object_or_404(Order.objects.with_details(), pk=pk)
     return render(request, "order_detail.html", {"order": order})

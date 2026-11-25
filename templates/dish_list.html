@@ -19,7 +19,7 @@
         {% for dish in dishes %}
           <li class="list-group-item">
             {% if dish.name %}
-              <a href="{% url 'menu:detail' name=dish.name %}">{{ dish.name }}</a>
+              <a href="{{ dish.get_absolute_url }}">{{ dish.name }}</a>
             {% else %}
               {{ dish.name|default:"Блюдо без названия" }}
             {% endif %}

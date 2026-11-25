@@ -1,6 +1,6 @@
 """Главная страница и страницы ошибок."""
 
-from django.db.models import Avg, Count, Max, Min, Sum
+from django.db.models import Avg, Count, Max, Min, Q, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
@@ -30,8 +30,13 @@ def statistics(request: HttpRequest) -> HttpResponse:
         "statistics.html",
         {
             "visitor_count": Visitor.objects.count(),
-            "orders": Order.objects.aggregate(
+            "orders": Order.objects.active().aggregate(
                 count=Count("pk"), total=Sum("dish__price", default=0),
+            ),
+            "status_totals": Order.objects.aggregate(
+                active=Count("pk", filter=Q(status=Order.Status.ACTIVE)),
+                cancelled=Count("pk", filter=Q(status=Order.Status.CANCELLED)),
+                completed=Count("pk", filter=Q(status=Order.Status.COMPLETED)),
             ),
             "prices": Dish.objects.aggregate(
                 minimum=Min("price"), maximum=Max("price"),
@@ -41,7 +46,9 @@ def statistics(request: HttpRequest) -> HttpResponse:
                 count=Count("pk"),
             ).order_by("-available"),
             "ordered_dishes": Dish.objects.annotate(
-                count=Count("orders"),
+                count=Count(
+                    "orders", filter=Q(orders__status=Order.Status.ACTIVE),
+                ),
             ).filter(count__gt=0).order_by("-count", "name"),
         },
     )

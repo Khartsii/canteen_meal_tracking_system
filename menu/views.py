@@ -3,7 +3,7 @@
 from datetime import date
 
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Dish
 
@@ -22,9 +22,7 @@ def dish_list(request: HttpRequest) -> HttpResponse:
         except ValueError:
             error = "Укажите дату в формате ГГГГ-ММ-ДД."
         else:
-            dishes = dishes.filter(available=True).exclude(
-                unavailability__unavailable_date=day,
-            )
+            dishes = dishes.available_on(day)
 
     return render(
         request,
@@ -39,7 +37,12 @@ def dish_list(request: HttpRequest) -> HttpResponse:
     )
 
 
-def dish_detail(request: HttpRequest, name: str) -> HttpResponse:
+def dish_detail(request: HttpRequest, slug: str) -> HttpResponse:
     """Показать цену и доступность выбранного блюда."""
-    dish = get_object_or_404(Dish, name=name)
+    dish = get_object_or_404(Dish, slug=slug)
     return render(request, "dish_detail.html", {"dish": dish})
+
+
+def legacy_detail(request: HttpRequest, name: str) -> HttpResponse:
+    """Перенаправить старый адрес блюда на карточку по slug."""
+    return redirect(get_object_or_404(Dish, name=name))

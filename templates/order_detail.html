@@ -5,11 +5,13 @@
   <div class="panel">
     <dl>
       <dt>Блюдо</dt>
-      <dd>{% include "includes/order_dish.html" with name=order.dish.name only %}</dd>
+      <dd>{% include "includes/order_dish.html" with dish=order.dish only %}</dd>
       <dt>Стоимость</dt>
       <dd>{{ order.dish.price|floatformat:2 }} $</dd>
       <dt>Статус</dt>
-      <dd>Действующий</dd>
+      <dd>{{ order.get_status_display }}</dd>
+      <dt>Дата</dt>
+      <dd>{{ order.meal_date|date:"d.m.Y"|default:"Дата не указана" }}</dd>
     </dl>
     <a href="{% url 'orders:list' %}">Вернуться к заказам</a>
   </div>

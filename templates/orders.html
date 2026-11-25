@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Действующие заказы{% endblock %}
+{% block title %}Заказы{% endblock %}
 {% block content %}
-  <h1>Действующие заказы</h1>
+  <h1>Заказы</h1>
   <form method="get" class="mb-3">
     <label for="order-search">Посетитель или блюдо</label>
     <input id="order-search" name="q" value="{{ search }}">
@@ -14,6 +14,15 @@
         </option>
       {% endfor %}
     </select>
+    <label for="order-status">Статус</label>
+    <select id="order-status" name="status">
+      <option value="all"{% if selected_status == "all" %} selected{% endif %}>Все статусы</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <label for="order-date">Дата</label>
+    <input id="order-date" name="date" type="date" value="{{ date }}">
     <label for="order-sort">Сортировка</label>
     <select id="order-sort" name="sort">
       <option value="recent"{% if sort == "recent" %} selected{% endif %}>Сначала новые</option>
@@ -21,31 +30,40 @@
       <option value="price"{% if sort == "price" %} selected{% endif %}>По убыванию цены</option>
     </select>
     <button class="btn btn-success" type="submit">Применить</button>
-    {% if search or selected_dish or sort != "recent" %}
+    {% if search or selected_dish or date or selected_status != "active" or sort != "recent" %}
       <a href="{% url 'orders:list' %}">Сбросить</a>
     {% endif %}
   </form>
+  {% if date_error %}<p role="alert">{{ date_error }}</p>{% endif %}
   <p>Всего: {{ count }}. Общая стоимость: {{ total|floatformat:2 }} $.</p>
   <div class="panel">
     {% if orders %}
       <table class="table mb-0">
         <thead>
-          <tr><th scope="col">Посетитель</th><th scope="col">Блюдо</th></tr>
+          <tr><th scope="col">Посетитель</th><th scope="col">Блюдо</th><th scope="col">Дата</th><th scope="col">Статус</th></tr>
         </thead>
         <tbody>
           {% for order in orders %}
             <tr>
-              <td><a href="{% url 'orders:detail' visitor=order.visitor.name %}">{{ order.visitor.name }}</a></td>
               <td>
-                {% include "includes/order_dish.html" with name=order.dish.name only %}
+                {% if order.status == "active" %}
+                  <a href="{% url 'orders:detail' visitor=order.visitor.name %}">{{ order.visitor.name }}</a>
+                {% else %}
+                  <a href="{% url 'orders:by_id' pk=order.pk %}">{{ order.visitor.name }}</a>
+                {% endif %}
               </td>
+              <td>
+                {% include "includes/order_dish.html" with dish=order.dish only %}
+              </td>
+              <td>{{ order.meal_date|date:"d.m.Y"|default:"—" }}</td>
+              <td>{{ order.get_status_display }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
       <p class="mb-0">
-        {% if search or selected_dish %}Заказы не найдены.{% else %}Действующих заказов пока нет.{% endif %}
+        {% if search or selected_dish or date or selected_status != "active" %}Заказы не найдены.{% else %}Действующих заказов пока нет.{% endif %}
       </p>
     {% endif %}
   </div>

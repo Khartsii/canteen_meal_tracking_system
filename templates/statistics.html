@@ -7,6 +7,13 @@
     <p>Действующих заказов: {{ orders.count }}.
       Общая стоимость: {{ orders.total|floatformat:2 }} $.</p>
 
+    <h2>Статусы заказов</h2>
+    <ul>
+      <li>Действующие: {{ status_totals.active }}</li>
+      <li>Отменённые: {{ status_totals.cancelled }}</li>
+      <li>Выполненные: {{ status_totals.completed }}</li>
+    </ul>
+
     <h2>Меню</h2>
     {% if prices.average is not None %}
       <p>Средняя цена: {{ prices.average|floatformat:2 }} $.
@@ -20,7 +27,7 @@
       {% endfor %}
     </ul>
 
-    <h2>Заказы по блюдам</h2>
+    <h2>Действующие заказы по блюдам</h2>
     <ul>
       {% for dish in ordered_dishes %}
         <li>{{ dish.name|default:"Блюдо без названия" }}: {{ dish.count }}</li>

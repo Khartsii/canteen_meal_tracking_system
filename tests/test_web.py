@@ -42,7 +42,7 @@ def test_home_navigation(client: Client) -> None:
 
 def test_menu_and_dish(client: Client) -> None:
     """Меню ведёт на динамическую страницу блюда с ценой и доступностью."""
-    url = reverse("menu:detail", kwargs={"name": "Pizza"})
+    url = reverse("menu:detail", kwargs={"slug": "pizza"})
     menu = client.get("/menu/")
     assert menu.status_code == 200
     assert f'href="{url}"' in menu.content.decode()
@@ -52,7 +52,7 @@ def test_menu_and_dish(client: Client) -> None:
     assert "10,99" in dish.content.decode()
     assert "Доступно для заказа" in dish.content.decode()
 
-    unavailable = client.get("/menu/Salad/")
+    unavailable = client.get("/menu/dish/salad/")
     assert unavailable.status_code == 200
     assert "Недоступно для заказа" in unavailable.content.decode()
 
@@ -129,11 +129,11 @@ def test_availability_by_date(client: Client) -> None:
     url = reverse("menu:list")
     response = client.get(url, {"date": "2026-11-25"})
     assert response.status_code == 200
-    assert "/menu/Soup/" in response.content.decode()
-    assert "/menu/Pizza/" not in response.content.decode()
-    assert "/menu/Salad/" not in response.content.decode()
+    assert "/menu/dish/soup/" in response.content.decode()
+    assert "/menu/dish/pizza/" not in response.content.decode()
+    assert "/menu/dish/salad/" not in response.content.decode()
     other_date = client.get(url, {"date": "2026-11-26"})
-    assert "/menu/Pizza/" in other_date.content.decode()
+    assert "/menu/dish/pizza/" in other_date.content.decode()
     assert client.get(url, {"date": "2026-11-31"}).status_code == 400
 
 
@@ -180,5 +180,61 @@ def test_dish_search_combines_with_date(client: Client) -> None:
     url = reverse("menu:list")
     response = client.get(url, {"q": "pIz", "date": "2026-11-25"})
     assert response.status_code == 200
-    assert 'href="/menu/Pizza/"' in response.content.decode()
-    assert 'href="/menu/Soup/"' not in response.content.decode()
+    assert 'href="/menu/dish/pizza/"' in response.content.decode()
+    assert 'href="/menu/dish/soup/"' not in response.content.decode()
+
+
+def test_portions_and_order_statuses(client: Client) -> None:
+    """На выбранную дату остаток уменьшают только действующие заказы."""
+    pizza = Dish.objects.get(name="Pizza")
+    pizza.daily_portions = 1
+    pizza.save(update_fields=["daily_portions"])
+    day = date(2026, 11, 25)
+    active = Order.objects.get(visitor__name="Alice")
+    active.meal_date = day
+    active.save(update_fields=["meal_date"])
+    finished = Order.objects.create(
+        visitor=active.visitor,
+        dish=pizza,
+        meal_date=day,
+        status=Order.Status.COMPLETED,
+    )
+
+    menu_url = reverse("menu:list")
+    assert pizza.get_absolute_url() not in client.get(
+        menu_url, {"date": day.isoformat()},
+    ).content.decode()
+    active.status = Order.Status.CANCELLED
+    active.save(update_fields=["status"])
+    assert pizza.get_absolute_url() in client.get(
+        menu_url, {"date": day.isoformat()},
+    ).content.decode()
+
+    orders_url = reverse("orders:list")
+    content = client.get(
+        orders_url,
+        {"status": Order.Status.COMPLETED, "date": day.isoformat()},
+    ).content.decode()
+    assert reverse("orders:by_id", kwargs={"pk": finished.pk}) in content
+    assert reverse("orders:by_id", kwargs={"pk": active.pk}) not in content
+    stats = client.get(reverse("homepage:statistics")).content.decode()
+    assert "Действующие: 1" in stats
+    assert "Отменённые: 1" in stats
+    assert "Выполненные: 1" in stats
+
+
+def test_admin_orders(client: Client, django_user_model: type) -> None:
+    """Администратор видит связанные записи и может искать по имени."""
+    admin_user = django_user_model.objects.create_superuser(
+        username="tester", password=None,
+    )
+    client.force_login(admin_user)
+    response = client.get(
+        reverse("admin:orders_order_changelist"),
+        {"q": "Alice", "status__exact": Order.Status.ACTIVE},
+    )
+    assert response.status_code == 200
+    assert "Alice" in response.content.decode()
+    assert "Pizza" in response.content.decode()
+    result_list = response.context["cl"].result_list
+    assert [order.visitor.name for order in result_list] == ["Alice"]

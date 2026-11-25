@@ -3,7 +3,7 @@
   <nav class="site-width site-nav" aria-label="Основная навигация">
     <a class="site-name" href="{% url 'homepage:index' %}">
       <img src="{% static 'homepage/img/logo.png' %}" width="32" height="32" alt="">
-      Столовая
+      {{ site_name }}
     </a>
     <a href="{% url 'menu:list' %}">Меню</a>
     <a href="{% url 'orders:list' %}">Заказы</a>

@@ -35,7 +35,7 @@ def test_import_preserves_ids_and_relations(tmp_path: Path) -> None:
     assert Dish.objects.count() == 3
     order = Order.objects.get(pk=42)
     assert order.visitor.name == "Alice"
-    assert order.visitor.order == order
+    assert order.visitor.orders.get() == order
     assert order.dish.orders.get() == order
     exception = order.dish.unavailability.get()
     assert exception.unavailable_date == date(2026, 12, 1)
@@ -45,7 +45,7 @@ def test_import_preserves_ids_and_relations(tmp_path: Path) -> None:
 
 
 def test_order_management_commands() -> None:
-    """Команды создают, меняют и удаляют заказ через ORM."""
+    """Команды создают, меняют и отменяют заказ через ORM."""
     visitor = Visitor.objects.create(name="Анна")
     pizza = Dish.objects.create(name="Pizza", price=10)
     soup = Dish.objects.create(name="Soup", price=5)
@@ -63,7 +63,9 @@ def test_order_management_commands() -> None:
         soup.delete()
 
     call_command("cancel_order", "Анна")
-    assert not Order.objects.filter(visitor=visitor).exists()
+    order.refresh_from_db()
+    assert order.status == Order.Status.CANCELLED
+    assert not Order.objects.active().filter(visitor=visitor).exists()
     assert Visitor.objects.filter(pk=visitor.pk).exists()
 
 

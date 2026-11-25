@@ -49,15 +49,15 @@ class Command(BaseCommand):
                     Visitor(id=row["id"], name=row["name"])
                     for row in legacy.execute("SELECT id, name FROM visitors")
                 ])
-                dishes = Dish.objects.bulk_create([
-                    Dish(
+                dishes = [
+                    Dish.objects.create(
                         id=row["id"],
                         name=row["name"],
                         price=row["price"],
                         available=bool(row["available"]),
                     )
                     for row in legacy.execute("SELECT * FROM dishes")
-                ])
+                ]
                 orders = Order.objects.bulk_create([
                     Order(
                         id=row["id"],
