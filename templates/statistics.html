@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Статистика столовой{% endblock %}
+{% block content %}
+  <h1>Статистика столовой</h1>
+  <div class="panel">
+    <p>Посетителей: {{ visitors|length }}.</p>
+    <p>Действующих заказов: {{ orders.count }}.
+      Общая стоимость: {{ orders.total|floatformat:2 }} $.</p>
+
+    <h2>Меню</h2>
+    {% if prices.average is not None %}
+      <p>Средняя цена: {{ prices.average|floatformat:2 }} $.
+        Диапазон: {{ prices.minimum|floatformat:2 }}–{{ prices.maximum|floatformat:2 }} $.</p>
+    {% else %}
+      <p>В меню пока нет блюд.</p>
+    {% endif %}
+    <ul>
+      {% for group in dish_counts %}
+        <li>{% if group.available %}Доступно{% else %}Недоступно{% endif %}: {{ group.count }}</li>
+      {% endfor %}
+    </ul>
+
+    <h2>Заказы по блюдам</h2>
+    <ul>
+      {% for dish in ordered_dishes %}
+        <li>{{ dish.name|default:"Блюдо без названия" }}: {{ dish.count }}</li>
+      {% empty %}
+        <li>Действующих заказов пока нет.</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endblock %}

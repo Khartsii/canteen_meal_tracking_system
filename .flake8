@@ -3,3 +3,4 @@ extend-exclude = .venv
 # Печать используется для вывода в консольном интерфейсе.
 per-file-ignores =
     main.py:T201
+    db/import_json.py:T201

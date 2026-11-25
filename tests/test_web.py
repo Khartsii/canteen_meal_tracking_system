@@ -1,5 +1,6 @@
 """Проверки маршрутов и страниц Django."""
 
+from contextlib import closing
 from pathlib import Path
 
 import django
@@ -8,8 +9,8 @@ from django.contrib.staticfiles.finders import find
 from django.test import Client
 from django.urls import reverse
 
-from menu import views as menu_views
-from orders import views as order_views
+from db import database
+from db.import_json import import_data
 from storage import load_data, save_data
 
 
@@ -17,7 +18,7 @@ from storage import load_data, save_data
 def client(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> Client:
-    """Запустить Django с отдельным JSON для тестовых запросов."""
+    """Запустить Django с временной SQLite, заполненной из JSON."""
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "canteen_web.settings")
     django.setup()
     path = tmp_path / "canteen.json"
@@ -25,8 +26,9 @@ def client(
     canteen.add_user("Анна")
     canteen.add_order("Анна", "Soup")
     save_data(path, canteen)
-    monkeypatch.setattr(menu_views, "DATA_FILE", path)
-    monkeypatch.setattr(order_views, "DATA_FILE", path)
+    db_path = tmp_path / "canteen.sqlite3"
+    import_data(path, db_path)
+    monkeypatch.setattr(database, "DB_PATH", db_path)
     return Client(HTTP_HOST="localhost")
 
 
@@ -94,9 +96,9 @@ def test_order_detail(client: Client) -> None:
 
 def test_empty_menu_and_orders(client: Client) -> None:
     """Пустые коллекции показывают сообщения на обеих страницах."""
-    menu_views.DATA_FILE.write_text(
-        '{"users": [], "menu": {}, "orders": {}}', encoding="utf-8",
-    )
+    with closing(database.connect()) as connection, connection:
+        connection.execute("DELETE FROM orders")
+        connection.execute("DELETE FROM dishes")
     menu = client.get(reverse("menu:list"))
     assert menu.status_code == 200
     assert "Позиций в меню: 0" in menu.content.decode()
@@ -117,3 +119,36 @@ def test_static_assets(client: Client) -> None:
     ):
         assert f'"/static/{asset}"' in content
         assert find(asset) is not None
+
+
+def test_availability_by_date(client: Client) -> None:
+    """На выбранную дату учитываются исключения из доступного меню."""
+    with closing(database.connect()) as connection, connection:
+        connection.execute(
+            "INSERT INTO dish_unavailability (dish_id, unavailable_date) "
+            "SELECT id, ? FROM dishes WHERE name = ?",
+            ("2026-11-25", "Pizza"),
+        )
+
+    url = reverse("menu:list")
+    response = client.get(url, {"date": "2026-11-25"})
+    assert response.status_code == 200
+    assert "/menu/Soup/" in response.content.decode()
+    assert "/menu/Pizza/" not in response.content.decode()
+    assert "/menu/Salad/" not in response.content.decode()
+    other_date = client.get(url, {"date": "2026-11-26"})
+    assert "/menu/Pizza/" in other_date.content.decode()
+    assert client.get(url, {"date": "2026-11-31"}).status_code == 400
+
+
+def test_statistics(client: Client) -> None:
+    """Статистика отображает агрегаты и группы из SQLite."""
+    response = client.get(reverse("homepage:statistics"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Посетителей: 6." in content
+    assert "Действующих заказов: 2." in content
+    assert "Доступно: 2" in content
+    assert "Недоступно: 1" in content
+    assert "Pizza: 1" in content
+    assert "Salad: 0" not in content

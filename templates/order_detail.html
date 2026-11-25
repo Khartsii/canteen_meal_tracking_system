@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Заказ посетителя {{ order.visitor.name }}{% endblock %}
+{% block title %}Заказ посетителя {{ order.visitor }}{% endblock %}
 {% block content %}
-  <h1>Заказ посетителя {{ order.visitor.name }}</h1>
+  <h1>Заказ посетителя {{ order.visitor }}</h1>
   <div class="panel">
     <dl>
       <dt>Блюдо</dt>
-      <dd>{% include "includes/order_dish.html" with dish=order.dish only %}</dd>
+      <dd>{% include "includes/order_dish.html" with name=order.dish only %}</dd>
       <dt>Стоимость</dt>
-      <dd>{{ order.dish.price|floatformat:2 }} $</dd>
+      <dd>{{ order.price|floatformat:2 }} $</dd>
       <dt>Статус</dt>
       <dd>Действующий</dd>
     </dl>

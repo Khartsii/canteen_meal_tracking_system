@@ -1,5 +1,5 @@
-{% if dish.name %}
-  <a href="{% url 'menu:detail' name=dish.name %}">{{ dish.name }}</a>
+{% if name %}
+  <a href="{% url 'menu:detail' name=name %}">{{ name }}</a>
 {% else %}
-  {{ dish.name|default:"Блюдо без названия" }}
+  {{ name|default:"Блюдо без названия" }}
 {% endif %}

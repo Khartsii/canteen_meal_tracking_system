@@ -2,23 +2,33 @@
 {% block title %}Меню столовой{% endblock %}
 {% block content %}
   <h1>Меню столовой</h1>
-  <p>Позиций в меню: {{ dishes|length }}.</p>
-  <div class="panel">
-    <ul class="list-group list-group-flush">
-      {% for dish in dishes %}
-        <li class="list-group-item">
-          {% if dish.name %}
-            <a href="{% url 'menu:detail' name=dish.name %}">{{ dish.name }}</a>
-          {% else %}
-            {{ dish.name|default:"Блюдо без названия" }}
-          {% endif %}
-          <span class="ms-2">
-            {% if dish.available %}Доступно{% else %}Недоступно{% endif %}
-          </span>
-        </li>
-      {% empty %}
-        <li class="list-group-item">В меню пока нет блюд.</li>
-      {% endfor %}
-    </ul>
-  </div>
+  <form method="get" class="mb-3">
+    <label for="menu-date">Доступность на дату</label>
+    <input id="menu-date" name="date" type="date" value="{{ date }}" required>
+    <button class="btn btn-success" type="submit">Найти блюда</button>
+    {% if date %}<a href="{% url 'menu:list' %}">Сбросить</a>{% endif %}
+  </form>
+  {% if date_error %}
+    <p role="alert">{{ date_error }}</p>
+  {% else %}
+    <p>Позиций в меню: {{ dishes|length }}.</p>
+    <div class="panel">
+      <ul class="list-group list-group-flush">
+        {% for dish in dishes %}
+          <li class="list-group-item">
+            {% if dish.name %}
+              <a href="{% url 'menu:detail' name=dish.name %}">{{ dish.name }}</a>
+            {% else %}
+              {{ dish.name|default:"Блюдо без названия" }}
+            {% endif %}
+            <span class="ms-2">
+              {% if dish.available %}Доступно{% else %}Недоступно{% endif %}
+            </span>
+          </li>
+        {% empty %}
+          <li class="list-group-item">{% if date %}На выбранную дату нет доступных блюд.{% else %}В меню пока нет блюд.{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
 {% endblock %}

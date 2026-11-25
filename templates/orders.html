@@ -12,9 +12,9 @@
         <tbody>
           {% for order in orders %}
             <tr>
-              <td><a href="{% url 'orders:detail' visitor=order.visitor.name %}">{{ order.visitor.name }}</a></td>
+              <td><a href="{% url 'orders:detail' visitor=order.visitor %}">{{ order.visitor }}</a></td>
               <td>
-                {% include "includes/order_dish.html" with dish=order.dish only %}
+                {% include "includes/order_dish.html" with name=order.dish only %}
               </td>
             </tr>
           {% endfor %}
