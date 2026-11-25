@@ -4,6 +4,7 @@ from pathlib import Path
 
 import django
 import pytest
+from django.contrib.staticfiles.finders import find
 from django.test import Client
 from django.urls import reverse
 
@@ -65,9 +66,54 @@ def test_orders_use_saved_data(client: Client) -> None:
     assert "Всего: 2. Общая стоимость: 15,49 $." in content
 
 
-@pytest.mark.parametrize("url", ["/unknown/", "/menu/unknown/"])
+@pytest.mark.parametrize(
+    "url", ["/unknown/", "/menu/unknown/", "/orders/unknown/"],
+)
 def test_not_found(client: Client, url: str) -> None:
-    """Неизвестный путь и неизвестное блюдо возвращают страницу 404."""
+    """Неизвестные путь, блюдо и заказ возвращают страницу 404."""
     response = client.get(url)
     assert response.status_code == 404
     assert "Страница не найдена" in response.content.decode()
+
+
+def test_order_detail(client: Client) -> None:
+    """Список ведёт на карточку заказа, сохранённого в JSON."""
+    url = reverse("orders:detail", kwargs={"visitor": "Анна"})
+    order_list = client.get(reverse("orders:list")).content.decode()
+    assert f'href="{url}"' in order_list
+
+    response = client.get(url)
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Заказ посетителя Анна" in content
+    assert "Soup" in content
+    assert "4,50 $" in content
+    assert "Действующий" in content
+    assert 'href="/orders/"' in content
+
+
+def test_empty_menu_and_orders(client: Client) -> None:
+    """Пустые коллекции показывают сообщения на обеих страницах."""
+    menu_views.DATA_FILE.write_text(
+        '{"users": [], "menu": {}, "orders": {}}', encoding="utf-8",
+    )
+    menu = client.get(reverse("menu:list"))
+    assert menu.status_code == 200
+    assert "Позиций в меню: 0" in menu.content.decode()
+    assert "В меню пока нет блюд." in menu.content.decode()
+
+    orders = client.get(reverse("orders:list"))
+    assert orders.status_code == 200
+    assert "Действующих заказов пока нет." in orders.content.decode()
+
+
+def test_static_assets(client: Client) -> None:
+    """Общий шаблон ссылается на найденные Django локальные файлы."""
+    content = client.get(reverse("homepage:index")).content.decode()
+    for asset in (
+        "homepage/css/site.css",
+        "homepage/img/logo.png",
+        "homepage/js/site.js",
+    ):
+        assert f'"/static/{asset}"' in content
+        assert find(asset) is not None

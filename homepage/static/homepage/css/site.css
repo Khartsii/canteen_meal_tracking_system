@@ -1,0 +1,48 @@
+body {
+  background: #f6f8f4;
+  color: #1e2b24;
+  font-family: system-ui, sans-serif;
+  margin: 0;
+}
+
+.site-header {
+  background: #173f32;
+  color: white;
+}
+
+.site-header a {
+  color: white;
+}
+
+.site-width {
+  max-width: 58rem;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.site-name {
+  font-weight: 700;
+  margin-right: auto;
+}
+
+.panel {
+  background: white;
+  border: 1px solid #d7e1d9;
+  border-radius: .75rem;
+  padding: 1.25rem;
+}
+
+.site-name img {
+  margin-right: .4rem;
+}
+
+.site-footer {
+  color: #436454;
+}

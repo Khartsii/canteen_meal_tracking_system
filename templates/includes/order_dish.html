@@ -1,0 +1,5 @@
+{% if dish.name %}
+  <a href="{% url 'menu:detail' name=dish.name %}">{{ dish.name }}</a>
+{% else %}
+  {{ dish.name|default:"Блюдо без названия" }}
+{% endif %}

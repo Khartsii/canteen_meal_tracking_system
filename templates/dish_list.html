@@ -2,11 +2,16 @@
 {% block title %}Меню столовой{% endblock %}
 {% block content %}
   <h1>Меню столовой</h1>
+  <p>Позиций в меню: {{ dishes|length }}.</p>
   <div class="panel">
     <ul class="list-group list-group-flush">
       {% for dish in dishes %}
         <li class="list-group-item">
-          <a href="{% url 'menu:detail' name=dish.name %}">{{ dish.name }}</a>
+          {% if dish.name %}
+            <a href="{% url 'menu:detail' name=dish.name %}">{{ dish.name }}</a>
+          {% else %}
+            {{ dish.name|default:"Блюдо без названия" }}
+          {% endif %}
           <span class="ms-2">
             {% if dish.available %}Доступно{% else %}Недоступно{% endif %}
           </span>
