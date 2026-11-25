@@ -3,10 +3,12 @@
 {% block content %}
   <h1>Меню столовой</h1>
   <form method="get" class="mb-3">
+    <label for="menu-search">Название блюда</label>
+    <input id="menu-search" name="q" value="{{ search }}">
     <label for="menu-date">Доступность на дату</label>
-    <input id="menu-date" name="date" type="date" value="{{ date }}" required>
+    <input id="menu-date" name="date" type="date" value="{{ date }}">
     <button class="btn btn-success" type="submit">Найти блюда</button>
-    {% if date %}<a href="{% url 'menu:list' %}">Сбросить</a>{% endif %}
+    {% if date or search %}<a href="{% url 'menu:list' %}">Сбросить</a>{% endif %}
   </form>
   {% if date_error %}
     <p role="alert">{{ date_error }}</p>
@@ -26,7 +28,7 @@
             </span>
           </li>
         {% empty %}
-          <li class="list-group-item">{% if date %}На выбранную дату нет доступных блюд.{% else %}В меню пока нет блюд.{% endif %}</li>
+          <li class="list-group-item">{% if date %}На выбранную дату нет доступных блюд.{% elif search %}Блюда не найдены.{% else %}В меню пока нет блюд.{% endif %}</li>
         {% endfor %}
       </ul>
     </div>

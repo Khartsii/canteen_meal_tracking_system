@@ -3,7 +3,7 @@
 {% block content %}
   <h1>Статистика столовой</h1>
   <div class="panel">
-    <p>Посетителей: {{ visitors|length }}.</p>
+    <p>Посетителей: {{ visitor_count }}.</p>
     <p>Действующих заказов: {{ orders.count }}.
       Общая стоимость: {{ orders.total|floatformat:2 }} $.</p>
 

@@ -1,26 +1,25 @@
 """Проверки маршрутов и страниц Django."""
 
-from contextlib import closing
+from datetime import date
 from pathlib import Path
 
-import django
 import pytest
 from django.contrib.staticfiles.finders import find
+from django.core.management import call_command
 from django.test import Client
 from django.urls import reverse
 
-from db import database
 from db.import_json import import_data
+from menu.models import Dish, DishUnavailability
+from orders.models import Order, Visitor
 from storage import load_data, save_data
 
 
 @pytest.fixture
 def client(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, db: None,
 ) -> Client:
     """Запустить Django с временной SQLite, заполненной из JSON."""
-    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "canteen_web.settings")
-    django.setup()
     path = tmp_path / "canteen.json"
     canteen = load_data(path)
     canteen.add_user("Анна")
@@ -28,7 +27,7 @@ def client(
     save_data(path, canteen)
     db_path = tmp_path / "canteen.sqlite3"
     import_data(path, db_path)
-    monkeypatch.setattr(database, "DB_PATH", db_path)
+    call_command("import_pr7", source=db_path)
     return Client(HTTP_HOST="localhost")
 
 
@@ -96,9 +95,8 @@ def test_order_detail(client: Client) -> None:
 
 def test_empty_menu_and_orders(client: Client) -> None:
     """Пустые коллекции показывают сообщения на обеих страницах."""
-    with closing(database.connect()) as connection, connection:
-        connection.execute("DELETE FROM orders")
-        connection.execute("DELETE FROM dishes")
+    Order.objects.all().delete()
+    Dish.objects.all().delete()
     menu = client.get(reverse("menu:list"))
     assert menu.status_code == 200
     assert "Позиций в меню: 0" in menu.content.decode()
@@ -123,12 +121,10 @@ def test_static_assets(client: Client) -> None:
 
 def test_availability_by_date(client: Client) -> None:
     """На выбранную дату учитываются исключения из доступного меню."""
-    with closing(database.connect()) as connection, connection:
-        connection.execute(
-            "INSERT INTO dish_unavailability (dish_id, unavailable_date) "
-            "SELECT id, ? FROM dishes WHERE name = ?",
-            ("2026-11-25", "Pizza"),
-        )
+    DishUnavailability.objects.create(
+        dish=Dish.objects.get(name="Pizza"),
+        unavailable_date=date(2026, 11, 25),
+    )
 
     url = reverse("menu:list")
     response = client.get(url, {"date": "2026-11-25"})
@@ -152,3 +148,37 @@ def test_statistics(client: Client) -> None:
     assert "Недоступно: 1" in content
     assert "Pizza: 1" in content
     assert "Salad: 0" not in content
+
+
+def test_orders_filters_and_pagination(client: Client) -> None:
+    """Параметры поиска, фильтра и сортировки сохраняются между страницами."""
+    pizza = Dish.objects.get(name="Pizza")
+    for number in range(7):
+        visitor = Visitor.objects.create(name=f"Посетитель {number}")
+        Order.objects.create(visitor=visitor, dish=pizza)
+
+    url = reverse("orders:list")
+    parameters = {"q": "Pizza", "dish": "Pizza", "sort": "visitor"}
+    first = client.get(url, parameters).content.decode()
+    assert "Страница 1 из 2" in first
+    assert "Всего: 8" in first
+    assert "q=Pizza&amp;dish=Pizza&amp;sort=visitor&amp;page=2" in first
+    assert "Посетитель 0" in first
+    assert "Посетитель 6" not in first
+    assert "Soup" in first  # Доступен в списке вариантов фильтра.
+    assert "Анна" not in first
+
+    second = client.get(url, {**parameters, "page": 2}).content.decode()
+    assert "Страница 2 из 2" in second
+    assert "Посетитель 6" in second
+    invalid = client.get(url, {"sort": "unknown", "page": "bad"})
+    assert invalid.status_code == 200
+
+
+def test_dish_search_combines_with_date(client: Client) -> None:
+    """Поиск по названию можно сочетать с фильтром доступности."""
+    url = reverse("menu:list")
+    response = client.get(url, {"q": "pIz", "date": "2026-11-25"})
+    assert response.status_code == 200
+    assert 'href="/menu/Pizza/"' in response.content.decode()
+    assert 'href="/menu/Soup/"' not in response.content.decode()

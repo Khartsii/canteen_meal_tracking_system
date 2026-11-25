@@ -7,3 +7,4 @@ __pycache__/
 canteen_data.json
 
 canteen.sqlite3
+db.sqlite3

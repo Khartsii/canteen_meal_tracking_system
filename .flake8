@@ -4,3 +4,4 @@ extend-exclude = .venv
 per-file-ignores =
     main.py:T201
     db/import_json.py:T201
+    */migrations/*.py:D100,D101,D104,E501

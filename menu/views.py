@@ -2,40 +2,44 @@
 
 from datetime import date
 
-from django.http import Http404, HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, render
 
-from db.database import select
+from .models import Dish
 
 
 def dish_list(request: HttpRequest) -> HttpResponse:
-    """Вывести меню или доступные на указанную дату блюда."""
+    """Вывести меню с поиском по названию и доступности на дату."""
     selected_date = request.GET.get("date", "").strip()
-    date_error = ""
-    dishes = []
+    search = request.GET.get("q", "").strip()
+    error = ""
+    dishes = Dish.objects.all()
+    if search:
+        dishes = dishes.filter(name__icontains=search)
     if selected_date:
         try:
             day = date.fromisoformat(selected_date)
         except ValueError:
-            date_error = "Укажите дату в формате ГГГГ-ММ-ДД."
+            error = "Укажите дату в формате ГГГГ-ММ-ДД."
         else:
-            dishes = select("available_dishes", day.isoformat())
-    else:
-        dishes = select("dishes")
-
-    dishes.sort(key=lambda dish: dish["name"].casefold())
+            dishes = dishes.filter(available=True).exclude(
+                unavailability__unavailable_date=day,
+            )
 
     return render(
         request,
         "dish_list.html",
-        {"dishes": dishes, "date": selected_date, "date_error": date_error},
-        status=400 if date_error else 200,
+        {
+            "dishes": sorted(dishes, key=lambda dish: dish.name.casefold()),
+            "date": selected_date,
+            "search": search,
+            "date_error": error,
+        },
+        status=400 if error else 200,
     )
 
 
 def dish_detail(request: HttpRequest, name: str) -> HttpResponse:
     """Показать цену и доступность выбранного блюда."""
-    dishes = select("dish_detail", name)
-    if not dishes:
-        raise Http404("Блюдо не найдено.")
-    return render(request, "dish_detail.html", {"dish": dishes[0]})
+    dish = get_object_or_404(Dish, name=name)
+    return render(request, "dish_detail.html", {"dish": dish})

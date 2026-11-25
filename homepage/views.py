@@ -1,9 +1,11 @@
 """Главная страница и страницы ошибок."""
 
+from django.db.models import Avg, Count, Max, Min, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from db.database import select
+from menu.models import Dish
+from orders.models import Order, Visitor
 
 
 def index(request: HttpRequest) -> HttpResponse:
@@ -27,10 +29,19 @@ def statistics(request: HttpRequest) -> HttpResponse:
         request,
         "statistics.html",
         {
-            "visitors": select("visitors"),
-            "orders": select("order_totals")[0],
-            "prices": select("price_summary")[0],
-            "dish_counts": select("dish_counts"),
-            "ordered_dishes": select("ordered_dishes"),
+            "visitor_count": Visitor.objects.count(),
+            "orders": Order.objects.aggregate(
+                count=Count("pk"), total=Sum("dish__price", default=0),
+            ),
+            "prices": Dish.objects.aggregate(
+                minimum=Min("price"), maximum=Max("price"),
+                average=Avg("price"),
+            ),
+            "dish_counts": Dish.objects.values("available").annotate(
+                count=Count("pk"),
+            ).order_by("-available"),
+            "ordered_dishes": Dish.objects.annotate(
+                count=Count("orders"),
+            ).filter(count__gt=0).order_by("-count", "name"),
         },
     )
